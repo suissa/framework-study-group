@@ -75,3 +75,14 @@ server.listen(3000, function(){
     console.log('Server rodando de boas :D');
 });
 ```
+
+## Conceitos
+
+Precisamos enteder como é o fluxo de uma rota nesse framework:
+
+1) Chega uma requisição;
+2) Testa qual método da requisição;
+3) Testa qual a url da requisição;
+4) Executa a ação definida pela rota.
+
+
