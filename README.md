@@ -86,4 +86,37 @@ Precisamos enteder como é o fluxo de uma rota nesse framework:
 3) Testa qual a url da requisição;
 4) Executa a ação definida pela rota.
 
+Porém você precisa se questionar:
 
+> Como eu defino essas rotas para serem testadas?
+
+Ótima pergunta!
+
+
+### Rotas - Definição
+
+Sabemos que precisamos criar uma definição de rotas igual ao do Express:
+
+```js
+router.get('/', (req, res, next) => {
+  res.json([1,2,3,4])
+})
+```
+
+Logo precisamos criar um Objeto `router` que possui a função `get`, a qual recebe 2 parâmetros:
+
+- path: url da rota;
+- action: a função que precisa ser executada nessa rota.
+
+```js
+
+const router = {
+  get: (path, action) => {
+    routes.push({
+      method: 'GET',
+      path,
+      action
+    })
+  }
+}
+```
