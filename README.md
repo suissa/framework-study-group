@@ -108,7 +108,7 @@ Logo precisamos criar um Objeto `router` que possui a função `get`, a qual rec
 - path: url da rota;
 - action: a função que precisa ser executada nessa rota.
 
-Sabendo disso podemos fazer o seguinte código:
+Agora sabendo disso podemos fazer o seguinte código:
 
 ```js
 const routes = []
@@ -122,4 +122,25 @@ const router = {
     })
   }
 }
+```
+
+Dessa forma nós já criamos um mecanismo de definição de rotas IGUAL ao do Express.
+
+
+
+### Rotas - Execução da Requisição
+
+
+```js
+
+const server = http.createServer()
+
+server.on('request', (req, res) => {
+  router.run(req, res)
+})
+
+server.listen( 3000, () => {
+  console.log( 'Server rodando de boas :D' )
+} )
+
 ```
