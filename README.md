@@ -108,7 +108,10 @@ Logo precisamos criar um Objeto `router` que possui a função `get`, a qual rec
 - path: url da rota;
 - action: a função que precisa ser executada nessa rota.
 
+Sabendo disso podemos fazer o seguinte código:
+
 ```js
+const routes = []
 
 const router = {
   get: (path, action) => {
