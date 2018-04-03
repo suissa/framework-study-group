@@ -14,7 +14,7 @@ app.use('/api/user', user)
 
 
 ```js
-router.get('/', (req, res, next) => {
+router.get('/', (req, res) => {
   res.json([1,2,3,4])
 })
 ```
@@ -98,7 +98,7 @@ Porém você precisa se questionar:
 Sabemos que precisamos criar uma definição de rotas igual ao do Express:
 
 ```js
-router.get('/', (req, res, next) => {
+router.get('/', (req, res) => {
   res.json([1,2,3,4])
 })
 ```
@@ -140,10 +140,10 @@ const teste = [{
   Age: 17
 }]
 
-router.get('/', (req, res, next) => {
+router.get('/', (req, res) => {
   Controller.find(req, res)(teste)
 })
-router.get('/123', (req, res, next) => {
+router.get('/123', (req, res) => {
   Controller.findOne(req, res)(teste)
 })
 console.log('router: ', router)
@@ -201,7 +201,7 @@ const teste = [
 ]
 
 module.exports = {
-  use: (router) => (req, res, next) => {
+  use: (router) => (req, res) => {
 
     const url = req.url
     const method = req.method.toLowerCase()
@@ -259,7 +259,7 @@ switch (method) {
   case 'get': {
     getRoutes(router, 'get')
       .find(byPath(url))
-      .action(req, res, next)
+      .action(req, res)
     break;
   }
   default:
@@ -290,7 +290,7 @@ switch (method) {
   case 'get': {
     getRoutes(router, 'get')
       .find(byPath(url))
-      .action(req, res, next)
+      .action(req, res)
     break;
   }
   default:
@@ -317,7 +317,8 @@ Bom como DEFINIMOS que esse é nosso padrão de configuração da rota, nós TEM
 - path;
 - action.
 
-Eu usei `({ path }) => path === url` pois queria pegar apenas o valor dessa propriedade, isso foi possível graças à [Atribuição via desestruturação (destructuring assignment)](http://mdn.io/destructuring)
+Eu usei `({ path }) => path === url` pois queria pegar apenas o valor dessa propriedade, isso foi possível graças à [Atribuição via desestruturação (destructuring assignment)](http://mdn.io/destructuring), já aproveitando o ensejo vamos criar uma validação para a requisição do `favicon.ico` para retornarmos `false`. 
+
 
 ```js
 const byPath = (url) => ({ path }) => path === url
@@ -328,10 +329,8 @@ const getRoutes = (router, method = 'get') =>
     .filter(route => route.method.toLowerCase() === method.toLowerCase())
 
 module.exports = {
-  use: (router) => async (req, res, next) => {
-    const [url, query] = (req.url.includes('?')) 
-                            ? req.url.split('?')[0] 
-                            : [req.url]
+  use: (router) => async (req, res) => {
+    const url = req.url
                             
     const method = req.method.toLowerCase()
     
@@ -342,12 +341,245 @@ module.exports = {
       case 'get': {
         getRoutes(router, 'get')
           .find(byPath(url))
-          .action(req, res, next)
+          .action(req, res)
         break;
       }
       default:
         break;
     }
+  }
+}
+```
+
+Além disso vamos trocar `getRoutes(router, 'get')` por `getRoutes(router, method)` para que dessa forma possamos extender esse código facilmente e de maneira genérica, por exemplo:
+
+```js
+const byPath = (url) => ({ path }) => path === url
+
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+
+module.exports = {
+  use: (router) => async (req, res) => {
+    const url = req.url
+                            
+    const method = req.method.toLowerCase()
+    
+    if (url.includes('favicon.ico'))
+      return false
+    
+    switch (method) {
+      case 'get': {
+        getRoutes(router, method)
+          .find(byPath(url))
+          .action(req, res)
+        break;
+      }
+      case 'post': {
+        getRoutes(router, method)
+          .find(byPath(url))
+          .action(req, res)
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}
+```
+
+Percebeu que para criarmos para os métodos *PUT* e *DELETE* precisamos fazer apenas isso:
+
+
+```js
+const byPath = (url) => ({ path }) => path === url
+
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+
+module.exports = {
+  use: (router) => async (req, res) => {
+    const url = req.url
+                            
+    const method = req.method.toLowerCase()
+    
+    if (url.includes('favicon.ico'))
+      return false
+    
+    switch (method) {
+      case 'get': {
+        getRoutes(router, method)
+          .find(byPath(url))
+          .action(req, res)
+        break;
+      }
+      case 'post': {
+        getRoutes(router, method)
+          .find(byPath(url))
+          .action(req, res)
+        break;
+      }
+      case 'put': {
+        getRoutes(router, method)
+          .find(byPath(url))
+          .action(req, res)
+        break;
+      }
+      case 'delete': {
+        getRoutes(router, method)
+          .find(byPath(url))
+          .action(req, res)
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}
+```
+
+<hr>
+
+# ATENÇÃO!!!!
+
+
+<hr>
+
+
+> **O que você notou nesse código acima???**
+
+
+Veja novamente apenas a parte que interessa:
+
+```js
+switch (method) {
+  case 'get': {
+    getRoutes(router, method)
+      .find(byPath(url))
+      .action(req, res)
+    break;
+  }
+  case 'post': {
+    getRoutes(router, method)
+      .find(byPath(url))
+      .action(req, res)
+    break;
+  }
+  case 'put': {
+    getRoutes(router, method)
+      .find(byPath(url))
+      .action(req, res)
+    break;
+  }
+  case 'delete': {
+    getRoutes(router, method)
+      .find(byPath(url))
+      .action(req, res)
+    break;
+  }
+  default:
+    break;
+}
+```
+
+
+<br>
+<br>
+<br>
+
+# SIM!!! Ele é quase TODO IGUAL!!!
+
+<br>
+<br>
+<br>
+
+
+Retirando os códigos duplicados ficamos com isso:
+
+```js
+const byPath = (url) => ({ path }) => path === url
+
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+
+module.exports = {
+  use: (router) => async (req, res) => {
+    const url = req.url
+                            
+    const method = req.method.toLowerCase()
+    
+    if (url.includes('favicon.ico'))
+      return false
+    
+    return getRoutes(router, method)
+      .find(byPath(url))
+      .action(req, res)
+  }
+}
+```
+
+## Refatoração NERVOSA - Mas simples
+
+Acompanhe comigo o seguinte, vamos retirar a definição das constantes internas e usar seu valor diretamente como visto abaixo:
+
+```js
+const byPath = (url) => ({ path }) => path === url
+
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+
+module.exports = {
+  use: (router) => async (req, res) => {
+    
+    if (req.url.includes('favicon.ico'))
+      return false
+    
+    return getRoutes(router, req.method.toLowerCase())
+      .find(byPath(req.url))
+      .action(req, res)
+  }
+}
+```
+
+Perceba que nossa função pode ser separada em 2 partes:
+
+```js
+if (req.url.includes('favicon.ico'))
+  return false
+```
+
+```js
+return getRoutes(router, req.method.toLowerCase())
+  .find(byPath(req.url))
+  .action(req, res)
+```
+
+Sabendo disso nós podemos FACILMENTE refatorar para um *IF* ternário, para deixarmos nossa função com **APENAS UMA FUCKING LINHA**:
+
+
+```js
+const byPath = (url) => ({ path }) => path === url
+
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+
+module.exports = {
+  use: (router) => async (req, res) => 
+    (req.url.includes('favicon.ico'))
+      ? false
+      : getRoutes(router, req.method.toLowerCase())
+        .find(byPath(req.url))
+        .action(req, res)
   }
 }
 ```
