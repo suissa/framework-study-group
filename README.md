@@ -108,25 +108,57 @@ Logo precisamos criar um Objeto `router` que possui a função `get`, a qual rec
 - path: url da rota;
 - action: a função que precisa ser executada nessa rota.
 
-Agora sabendo disso podemos fazer o seguinte código:
+Agora sabendo disso podemos criar o seguinte módulo:
 
 ```js
-const routes = []
-
+// lib/router.js
 const router = {
+  routes: [],
   get: (path, action) => {
-    routes.push({
+    router.routes.push({
       method: 'GET',
       path,
       action
     })
   }
 }
+
+module.exports = router
 ```
 
 Dessa forma nós já criamos um mecanismo de definição de rotas IGUAL ao do Express.
 
+Olhe como iremos utilizar no nosso arquivo `routes.js`:
 
+```js
+// routes.js
+const router = require('./lib/router')
+const Controller = require('./controller')
+
+const teste = [{
+  Name: 'Adelmo Junior',
+  Age: 17
+}]
+
+router.get('/', (req, res, next) => {
+  Controller.find(req, res)(teste)
+})
+router.get('/123', (req, res, next) => {
+  Controller.findOne(req, res)(teste)
+})
+console.log('router: ', router)
+/**
+router:  { routes: 
+   [ { method: 'GET', path: '/', action: [Function] },
+     { method: 'GET', path: '/123', action: [Function] } ],
+  get: [Function: get] }
+*/
+module.exports = route
+```
+
+Logo mais chegarei nessa parte do Controller, por hora vamos nos focar nas rotas e para isso agora precisamos fazer o mecanismo que executa essas rotas.
+
+Percebeu que essa definição das rotas apenas adiciona seus dados no *Array* `router.routes`, fiz dessa forma para facilitar o mecanismo de execução da rota desejada, então vamos entender como fazer isso.
 
 ### Rotas - Execução da Requisição
 
