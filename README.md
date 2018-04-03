@@ -162,17 +162,192 @@ Percebeu que essa definição das rotas apenas adiciona seus dados no *Array* `r
 
 ### Rotas - Execução da Requisição
 
+Primeiramente você precisa entender em que momento uma requisição nova chega no server, para isso vamos montar o seguinte `index.js` com a criação do *server HTTP* e vamos usar o evento `request` assim:
 
 ```js
-
+// index.js
+const http = require('http')
 const server = http.createServer()
 
-server.on('request', (req, res) => {
-  router.run(req, res)
-})
+const app = require('./lib')
+const routes = require('./routes')
+
+// Essa é a forma explícita
+// server.on('request', (req, res) => app.use(req, res)(routes))
+
+// Essa é a forma implícita
+server.on('request', app.use(routes))
 
 server.listen( 3000, () => {
   console.log( 'Server rodando de boas :D' )
 } )
+```
 
+Como sabemos que a chamada é `app.use(req, res)(routes)` logo inferimos que precisamos criar um módulo que seja um Objeto com a chave `use`, onde a qual é uma **CLOSURE** pois é uma função que retorna outra, facilmente notada pela sua execução: `(req, res)(routes)`.
+
+Basicamente esse esqueleto:
+
+```js
+const teste = [
+  {
+    id: 0,
+    name: 'Adelmo Junior',
+    age: 17
+  },{
+    id: 1,
+    name: 'Suisseba da Periferia',
+    age: 33
+  }
+]
+
+module.exports = {
+  use: (router) => (req, res, next) => {
+
+    const url = req.url
+    const method = req.method.toLowerCase()
+
+    switch (method) {
+      case 'get': {
+        switch (url) {
+          case '/': {
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.write(JSON.stringify(teste))
+            res.end()
+            break;
+          }
+          case '/get': {
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.write(JSON.stringify(teste[0]))
+            res.end()
+            break;
+          } 
+          default: {
+            res.writeHead(404, { 'Content-Type': 'application/json' })
+            res.write(JSON.stringify({status: 'error', message: 'Rota não encontrada'}))
+            res.end()
+            break;
+          }
+        }
+      break;
+      }
+      default: {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+        res.write(JSON.stringify({status: 'error', message: 'Rota não encontrada'}))
+        res.end()
+        break;
+      }
+    }
+  }
+}
+```
+
+Já entendemos como iremos testar e executar nossas rotas.
+
+No primeiro `switch` nós testamos qual o método HTTP da requisição para cair no seu `case` correto para depois testar sua rota, porém como já possuímos o Objeto `router` que possui internamente um *Array* com as nossas rotas, logo nós devemos criar um mecanismo para essa validação e execução de uma forma mais genérica sem esse segundo switch que seria para cada rota.
+
+Para solucionar esse problema iremos criar uma função genérica que será executada em qualquer requisição `GET` e com isso irá buscar o Objeto da rota correta e executar sua ação, essa foi minha solução simplista:
+
+```js
+const byPath = (url) => ({ path }) => path === url
+
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+
+switch (method) {
+  case 'get': {
+    getRoutes(router, 'get')
+      .find(byPath(url))
+      .action(req, res, next)
+    break;
+  }
+  default:
+    break;
+}
+```
+
+Agora olhe como é o retorno de cada uma dessas funções:
+
+```js
+const byPath = (url) => ({ path }) => path === url
+/**
+{ method: 'GET', path: '/', action: [Function] }
+*/
+
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+/**
+[ 
+  { method: 'GET', path: '/', action: [Function] },
+  { method: 'GET', path: '/123', action: [Function] } 
+]
+*/
+
+switch (method) {
+  case 'get': {
+    getRoutes(router, 'get')
+      .find(byPath(url))
+      .action(req, res, next)
+    break;
+  }
+  default:
+    break;
+}
+```
+
+Com a `getRoutes` nós recebemos um *Array* com os Objetos da rotas que são do mesmo método, logo depois utilizo a função [find](http://mdn.io/find), entretando note como eu defini a função `byPath`:
+
+
+```js
+const byPath = (url) => ({ path }) => path === url
+```
+
+Porém a forma mais comum de se escrever isso é assim:
+
+```js
+const byPath = (url) => (route) => route.path === url
+```
+
+Bom como DEFINIMOS que esse é nosso padrão de configuração da rota, nós TEMOS CERTEZA que o Objeto que está contido no *Array* `routes` possui a seguinte estrutura imutável:
+
+- method;
+- path;
+- action.
+
+Eu usei `({ path }) => path === url` pois queria pegar apenas o valor dessa propriedade, isso foi possível graças à [Atribuição via desestruturação (destructuring assignment)](http://mdn.io/destructuring)
+
+```js
+const byPath = (url) => ({ path }) => path === url
+
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+
+module.exports = {
+  use: (router) => async (req, res, next) => {
+    const [url, query] = (req.url.includes('?')) 
+                            ? req.url.split('?')[0] 
+                            : [req.url]
+                            
+    const method = req.method.toLowerCase()
+    
+    if (url.includes('favicon.ico'))
+      return false
+    
+    switch (method) {
+      case 'get': {
+        getRoutes(router, 'get')
+          .find(byPath(url))
+          .action(req, res, next)
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}
 ```
