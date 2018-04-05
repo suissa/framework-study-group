@@ -665,7 +665,18 @@ Dessa forma saimos de 33 linhas para 17!
 
 ### Request - params
 
+No Express quando definimos uma rota que aceita parâmetros precisamos disponibilizar esses parâmetros e seus valores, que vieram no `req.url`, como um Objeto dentro de `req.params`.
 
+```js
+router.get('/', (req, res, next) => {
+})
+
+router.get('/:id', (req, res, next) => {
+})
+
+router.get('/:id/:name', (req, res, next) => {
+})
+```
 
 ### Request - query
 
