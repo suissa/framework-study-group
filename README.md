@@ -584,6 +584,7 @@ module.exports = {
 }
 ```
 
+## Router
 
 Com isso podemos definir as outras funções do nosso `router`:
 
@@ -648,6 +649,25 @@ const router = {
 module.exports = router
 ```
 
+<br>
 Dessa forma saimos de 33 linhas para 17! 
 
+<br>
+
 > **Quase a metade! Tá bom né?**
+
+
+<br>
+<br>
+
+## Request
+
+
+### Request - params
+
+
+
+### Request - query
+
+
+### Request - body
