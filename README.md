@@ -583,3 +583,71 @@ module.exports = {
   }
 }
 ```
+
+
+Com isso podemos definir as outras funções do nosso `router`:
+
+```js
+// lib/router.js
+const router = {
+  routes: [],
+  get: (path, action) => {
+    router.routes.push({
+      method: 'GET',
+      path,
+      action
+    })
+  },
+  post: (path, action) => {
+    router.routes.push({
+      method: 'POST',
+      path,
+      action
+    })
+  },
+  put: (path, action) => {
+    router.routes.push({
+      method: 'PUT',
+      path,
+      action
+    })
+  },
+  delete: (path, action) => {
+    router.routes.push({
+      method: 'DELETE',
+      path,
+      action
+    })
+  }
+}
+
+module.exports = router
+```
+
+<br>
+
+**OBVIAMENTE VOCÊ PERCEBEU QUE O CÓDIGO ESTÁ SE REPETINDO.** Logo nós **DEVEMOS** refatorar ele para encapsular sua lógica em uma função genérica para reusarmos, dessa forma:
+
+```js
+const addRoute = (router, method, path, action) => {
+  router.routes.push({
+    method,
+    path,
+    action
+  })
+}
+
+const router = {
+  routes: [],
+  get: (path, action) => addRoute(router, 'GET', path, action),
+  post: (path, action) => addRoute(router, 'POST', path, action),
+  put: (path, action) => addRoute(router, 'PUT', path, action),
+  delete: (path, action) => addRoute(router, 'DELETE', path, action)
+}
+
+module.exports = router
+```
+
+Dessa forma saimos de 33 linhas para 17! 
+
+> **Quase a metade! Tá bom né?**
