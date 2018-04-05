@@ -678,6 +678,136 @@ router.get('/:id/:name', (req, res, next) => {
 })
 ```
 
+Primeiro precisamos pensar em como armazenar essas rotas pois eu não posso salva-las com esas urls, tendo em vista que nosso router iria procurar EXATAMENTE por essa rota e obviamente a url enviada estará com os valores que devem ser colocados nessas variáveis.
+
+Imagine que teremos 3 requisições:
+
+```
+GET /
+GET /1
+GET /1/suissa
+```
+
+> Como que iremos tratar essas urls para que possamos buscar a rota correta?
+
+A solução que pensei foi o seguinte:
+
+Analisando as rotas podemos perceber que elas possuem quantidade de parâmetros diferentes, porém todas iniciam na `/`, sabendo disso nós podemos armazenar a url de cada rota apenas com `/`, todavia precisamos criar uma lógica para separar os parâmetros da url e depois colocar corretamente em `req.params` no momento que a requisição chegar no nosso servidor.
+
+Nesse momento precisamos inferir qual a lógica para a separação desses parâmetros, então observe abaixo:
+
+```js
+
+> "/".split("/")
+[ '', '' ]
+> "/:id".split("/")
+[ '', ':id' ]
+> "/:id/:name".split("/")
+[ '', ':id', ':name' ]
+
+```
+
+Depois dessa quebra da url vamos eliminar os valores vazios:
+
+```js
+
+> "/".split("/").filter(e => e !== '')
+[]
+> "/:id".split("/").filter(e => e !== '')
+[ ':id' ]
+> "/:id/:name".split("/").filter(e => e !== '')
+[ ':id', ':name' ]
+
+```
+
+Já podemos colocar essa lógica em uma função:
+
+```js
+
+const removingEmpty = (path) => path.split('/').filter(e => e !== '')
+
+```
+
+Como queremos apenas o nome dos parâmetros precisamos eliminar o `:` com um `map`:
+
+```js
+> "/:id".split("/").filter(e => e !== '').map(p => p.replace(':', ''))
+[ 'id' ]
+> "/:id/:name".split("/").filter(e => e !== '').map(p => p.replace(':', ''))
+[ 'id', 'name' ]
+```
+
+Passamos essa lógica para uma função a qual irá receber o RESULTADO da `removingEmpty`, por exemplo:
+
+
+```js
+
+const hasParams = getParams(removingEmpty(path))
+
+```
+
+Então criamos a função `getParams` que irá OU receber um *Array* com os parâmetros OU `false`:
+
+```js
+
+const getParams = (arrParams) => 
+  (arrParams.length) 
+    ? arrParams.map(p => p.replace(':', '')) 
+    : false
+
+```
+
+
+```js
+const addRoute = (router, method, path, action) => {
+  const hasParams = getParams(removingEmpty(path))
+  path = (hasParams) ? '/' : path
+  
+  router.routes.push({
+    method,
+    path,
+    action,
+    hasParams
+  })
+}
+```
+
+Note essa definição `path = (hasParams) ? '/' : path` que foi feita para definir a url da rota com `/`, pois caso possua parâmetros sua url será `/`, senão será o próprio `path` definido na rota.
+
+Juntando tudo agora temos:
+
+
+```js
+// lib/router.js
+const getParams = (arrParams) => 
+  (arrParams.length) 
+    ? arrParams.map(p => p.replace(':', '')) 
+    : false
+    
+const removingEmpty = (path) => path.split('/').filter(e => e !== '')
+
+const addRoute = (router, method, path, action) => {
+  const hasParams = getParams(removingEmpty(path))
+  path = (hasParams) ? '/' : path
+  
+  router.routes.push({
+    method,
+    path,
+    action,
+    hasParams
+  })
+}
+const router = {
+  routes: [],
+  get: (path, action) => addRoute(router, 'GET', path, action),
+  post: (path, action) => addRoute(router, 'POST', path, action),
+  put: (path, action) => addRoute(router, 'PUT', path, action),
+  delete: (path, action) => addRoute(router, 'DELETE', path, action)
+}
+
+module.exports = router
+```
+
 ### Request - query
 
 
