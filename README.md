@@ -668,13 +668,13 @@ Dessa forma saimos de 33 linhas para 17!
 No Express quando definimos uma rota que aceita parâmetros precisamos disponibilizar esses parâmetros e seus valores, que vieram no `req.url`, como um Objeto dentro de `req.params`.
 
 ```js
-router.get('/', (req, res, next) => {
+router.get('/', (req, res) => {
 })
 
-router.get('/:id', (req, res, next) => {
+router.get('/:id', (req, res) => {
 })
 
-router.get('/:id/:name', (req, res, next) => {
+router.get('/:id/:name', (req, res) => {
 })
 ```
 
@@ -724,7 +724,7 @@ Já podemos colocar essa lógica em uma função:
 
 ```js
 
-const removingEmpty = (path) => path.split('/').filter(e => e !== '')
+const getValuesFromURL = (path) => path.split('/').filter(e => e !== '')
 
 ```
 
@@ -737,12 +737,12 @@ Como queremos apenas o nome dos parâmetros precisamos eliminar o `:` com um `ma
 [ 'id', 'name' ]
 ```
 
-Passamos essa lógica para uma função a qual irá receber o RESULTADO da `removingEmpty`, por exemplo:
+Passamos essa lógica para uma função a qual irá receber o RESULTADO da `getValuesFromURL`, por exemplo:
 
 
 ```js
 
-const hasParams = getParams(removingEmpty(path))
+const hasParams = getParams(getValuesFromURL(path))
 
 ```
 
@@ -760,7 +760,7 @@ const getParams = (arrParams) =>
 
 ```js
 const addRoute = (router, method, path, action) => {
-  const hasParams = getParams(removingEmpty(path))
+  const hasParams = getParams(getValuesFromURL(path))
   path = (hasParams) ? '/' : path
   
   router.routes.push({
@@ -784,10 +784,10 @@ const getParams = (arrParams) =>
     ? arrParams.map(p => p.replace(':', '')) 
     : false
     
-const removingEmpty = (path) => path.split('/').filter(e => e !== '')
+const getValuesFromURL = (path) => path.split('/').filter(e => e !== '')
 
 const addRoute = (router, method, path, action) => {
-  const hasParams = getParams(removingEmpty(path))
+  const hasParams = getParams(getValuesFromURL(path))
   path = (hasParams) ? '/' : path
   
   router.routes.push({
@@ -807,6 +807,113 @@ const router = {
 
 module.exports = router
 ```
+
+Para entendermos melhor como ficaram nossas rotas observe o log abaixo:
+
+```js
+router.get('/', (req, res) => {})
+router.get('/:id', (req, res) => {})
+router.get('/:id/:name', (req, res) => {})
+
+/**
+[ { method: 'GET', path: '/', action: [Function], hasParams: false },
+  { method: 'GET',
+    path: '/',
+    action: [Function],
+    hasParams: [ 'id' ] },
+  { method: 'GET',
+    path: '/',
+    action: [Function],
+    hasParams: [ 'id', 'name' ] 
+  } 
+]
+*/
+```
+
+Depois disso precisamos criar o mecanismo que valida esses parâmetros q adiciona esse objeto no `req`, para isso iremos modificar nossa função do `use` para que depois que acharmos a rota nós criemos o `req.params` para que quando executarmos `route.action(req, res)` esse `req` esteja correto.
+
+E quase sempre que quisermos criar um Objeto de forma dinâmica e usando dados de 2 lugares diferentes nós usaremos o `reduce`, além disso a nossa função do `reduce` precisa ser uma *closure*, pois como iremos iterar em um *Array*, que possui os valores dos parâmetros que vieram na url da requisição, precisamos também injetar o Objeto da rota para que possamos pegar também o nome definido para cada parâmetro:
+
+```js
+
+const params = getValuesFromURL(req.url)
+
+const toParams = (route) => (obj, cur, i) => 
+  Object.assign( obj, { [route.hasParams[i]]: cur } )
+
+req.params = params.reduce(toParams(route), {})
+// { id: '1', name: 'suissa' }
+```
+
+
+Substituindo nosso antigo `use` por esse novo:
+
+```js
+const getValuesFromURL = (path) => path.split('/').filter(e => e !== '')
+const byPath = (url) => ({ path }) => path === url
+const getRoutes = (router, method = 'get') => 
+  router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+
+module.exports = {
+  use: (router) => async (req, res) => {
+
+    if (req.url.includes('favicon.ico'))
+      return false
+
+    const route = getRoutes(router, req.method.toLowerCase())
+                    .find(byPath(req.url))
+
+    req.params = getValuesFromURL(req.url).reduce(toParams(route), {})
+    return  route.action(req, res)
+  }
+}
+```
+
+```js
+const getValuesFromURL = (path) => path.split('/').filter(e => e !== '')
+
+const byPath = (url) => (route) => {
+  const path = route.path
+  const arrParams = getValuesFromURL(url)
+  const hasParams = (arrParams.length) ? arrParams : false
+
+  if (!route.hasParams) return (path === url) 
+  
+  return (hasParams) 
+    ? (path === '/' && route.hasParams.length === hasParams.length)
+    : (path === url) 
+}
+
+const getRoutes = (router, method = 'get') => {
+  return router
+    .routes
+    .filter(route => route.method.toLowerCase() === method.toLowerCase())
+}
+
+const toParams = (route) => (obj, cur, i) => {
+  return Object.assign( obj, { [route.hasParams[i]]: cur } )
+}
+module.exports = {
+  use: (router) => async (req, res) => {
+    if (req.url.includes('favicon.ico'))
+      return false
+
+    const route = getRoutes(router, req.method.toLowerCase())
+        .find(byPath(req.url))
+
+    const params = getValuesFromURL(req.url)
+
+    req.params = (!route.hasParams) 
+      ? { }
+      : params.reduce(toParams(route), {})
+
+    return  route.action(req, res)
+  }
+}
+```
+
 
 ### Request - query
 
